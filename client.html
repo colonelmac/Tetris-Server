@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>WebSockets Client</title>
+
+	<script type="text/javascript">
+
+		window.onload = function () {
+			
+			/* WEBSOCKETS */
+
+			var host 		= "ws://localhost:3000",
+				message 	= document.querySelector('#message'),
+				messages 	= document.querySelector('#messages'),
+				bcCheckbox 	= document.querySelector('#canvas'),
+				smButton 	= document.querySelector('#send-message');
+
+			/* CANVAS */
+
+			var imgView  	 = document.querySelector('#imageView'),
+				imgContainer = document.querySelector('#image-container'),
+				ccButton 	 = document.querySelector('#clear-canvas'), 
+				biButton 	 = document.querySelector('#broadcast-canvas');
+
+			try {
+				var ws = new WebSocket(host);
+
+				ws.onopen = function (e) {
+					messages.value += "Connection opened! \n";
+				};
+
+				ws.onmessage = function (e) {
+					var msg = JSON.parse(e.data);
+
+					if (msg.content === 'text') {
+						if(!msg.broadcast)
+							messages.value += "SERVER:\t" + msg.message + "\n";
+						else
+							messages.value += "BROADCAST:\t" + msg.message + "\n";
+					}
+					else if (msg.content === 'image') {
+						var img = document.createElement('img');
+						img.src = msg.message;
+
+						imgContainer.appendChild(img);
+					}
+				};
+			}
+			catch (exception) {
+				alert('An error occurred while connecting to the server.');
+			}
+
+			smButton.addEventListener('click', function (e) {
+				if(ws) { 
+					if(ws.readyState != WebSocket.OPEN) return;
+
+					if (!bcCheckbox.checked) {
+						messages.value += "CLIENT:\t" + message.value + "\n";
+					}
+
+					ws.send(JSON.stringify({
+						message   : message.value,
+						broadcast : bcCheckbox.checked
+					}));
+				}
+			}, false);
+
+			biButton.addEventListener('click', function (e) {
+				var ctx 	= imgView.getContext('2d'),
+					dataurl = ctx.canvas.toDataURL('image/png');
+
+				var msg = {
+					content   : 'image',
+					message   : dataurl,
+					broadcast : true
+				};
+
+				ws.send(JSON.stringify(msg));
+			}, false);
+
+			ccButton.addEventListener('click', function (e) {
+				var ctx = imgView.getContext('2d');
+				ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+			}, false);
+		};		
+
+	</script>
+	
+</head>
+<body>
+
+	<p>
+		<canvas width="400" height="300" id="imageView"></canvas>
+	</p>
+	<p>
+		<button id="clear-canvas">Clear Canvas</button>
+		<button id="broadcast-canvas">Broadcast Image</button>
+	</p>
+	<p>
+		<textarea cols="80" rows="20" readonly="readonly" id="messages"></textarea>
+	</p>
+	<p>
+		<input type="text" size="89" id="message" />
+		<input type="checkbox" id="broadcast" />
+		<button id="send-message">Send Message</button>
+	</p>
+
+	<h4>Image Stream</h4>
+	<p id="image-container">
+
+	</p>
+
+	<script type="text/javascript" src="image-view.js"></script>
+</body>
+</html>
